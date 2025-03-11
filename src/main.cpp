@@ -2,7 +2,7 @@
 
 using namespace nlohmann;
 static RE::BGSFootstepSet* heels_sound = nullptr;
-static inline RE::FormID update_piece = NULL;
+static RE::FormID update_piece = NULL;
 
 void update_armor_with_heels(RE::TESObjectARMO* armor) {
   const auto addon =
