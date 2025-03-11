@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(commonlibsse-ng-template VERSION 0.0.1.0)
+project(skse-auto-heels VERSION 0.0.1.0)
 
 set(CMAKE_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 

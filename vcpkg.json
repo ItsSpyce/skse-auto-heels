@@ -1,5 +1,5 @@
 {
-  "name": "commonlibsse-ng-template",
+  "name": "skse-auto-heels",
   "version-string": "0.0.1",
   "dependencies": [
     "fmt",
