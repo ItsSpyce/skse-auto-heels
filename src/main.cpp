@@ -7,6 +7,10 @@ static RE::FormID update_piece = NULL;
 void update_armor_with_heels(RE::TESObjectARMO* armor) {
   const auto addon =
       armor->GetArmorAddon(RE::PlayerCharacter::GetSingleton()->GetRace());
+  if (!addon) {
+    logger::info("Armor {} has no addon, skipping", armor->GetName());
+    return;
+  }
   if (!addon->footstepSet) {
     logger::info("Armor {} has no footstep set, skipping", armor->GetName());
     return;
@@ -45,8 +49,6 @@ bool is_heel(const RE::NiAVObject* obj) {
     if (!sdta) {
       return false;
     }
-    // JSON structure we're looking for is [{"name": "NPC", "pos": {
-    // "x": 0.0, "y": 0.0, "z": 0.0 } }]
     if (const auto json = json::parse(sdta->value); json.is_array()) {
       for (const auto& entry : json) {
         if (!entry.is_object()) {
@@ -93,7 +95,10 @@ struct UpdatePlayerHook {
     auto* armor = RE::TESForm::LookupByID<RE::TESObjectARMO>(update_piece);
     update_piece = NULL;
     if (!armor) {
-      logger::info("Armor {} not found", update_piece);
+      return;
+    }
+    if (armor->GetSlotMask() !=
+        RE::BGSBipedObjectForm::BipedObjectSlot::kFeet) {
       return;
     }
 
@@ -135,7 +140,7 @@ void handle_message(SKSE::MessagingInterface::Message* msg) {
       if (!player) {
         return;
       }
-      const auto *boots = get_player_boots();
+      const auto* boots = get_player_boots();
       update_piece = boots->formID;
       break;
   }
