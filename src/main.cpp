@@ -2,22 +2,6 @@
 
 using namespace nlohmann;
 static RE::BGSFootstepSet* heels_sound = nullptr;
-static RE::FormID update_piece = NULL;
-
-void update_armor_with_heels(RE::TESObjectARMO* armor) {
-  const auto addon =
-      armor->GetArmorAddon(RE::PlayerCharacter::GetSingleton()->GetRace());
-  if (!addon) {
-    logger::info("Armor {} has no addon, skipping", armor->GetName());
-    return;
-  }
-  if (!addon->footstepSet) {
-    logger::info("Armor {} has no footstep set, skipping", armor->GetName());
-    return;
-  }
-  logger::debug("Updating armor {} with heels", armor->GetName());
-  addon->footstepSet = heels_sound;
-}
 
 bool visit_children(RE::NiAVObject* parent,
                     const std::function<bool(RE::NiAVObject*)>& visitor) {
@@ -67,17 +51,6 @@ bool is_heel(const RE::NiAVObject* obj) {
   return false;
 }
 
-bool check_if_player_has_heel() {
-  const auto* player = RE::PlayerCharacter::GetSingleton();
-  if (!player) {
-    return false;
-  }
-  if (!visit_children(player->Get3D(), &is_heel)) {
-    return false;
-  }
-  return true;
-}
-
 RE::TESObjectARMO* get_player_boots() {
   auto* player = RE::PlayerCharacter::GetSingleton();
   if (!player) {
@@ -89,59 +62,31 @@ RE::TESObjectARMO* get_player_boots() {
 struct UpdatePlayerHook {
   static void thunk(RE::PlayerCharacter* player, float delta) {
     func(player, delta);
-    if (update_piece == NULL) {
+    auto* boots = get_player_boots();
+    if (!boots) {
       return;
     }
-    auto* armor = RE::TESForm::LookupByID<RE::TESObjectARMO>(update_piece);
-    update_piece = NULL;
-    if (!armor) {
-      return;
-    }
-    if (armor->GetSlotMask() !=
-        RE::BGSBipedObjectForm::BipedObjectSlot::kFeet) {
+    auto* addon = boots->GetArmorAddon(player->GetRace());
+    if (!addon || addon->footstepSet->formID == heels_sound->formID) {
       return;
     }
 
-    if (!check_if_player_has_heel()) {
-      logger::info("No heels found");
-      return;
+    if (visit_children(player->Get3D(), &is_heel)) {
+      addon->footstepSet = heels_sound;
     }
-    update_armor_with_heels(armor);
   }
   static inline REL::Relocation<decltype(thunk)> func;
   static inline auto idx = 0xAD;
 };
 
-class InventoryUpdateSink final : public RE::BSTEventSink<RE::TESEquipEvent> {
- public:
-  RE::BSEventNotifyControl ProcessEvent(
-      const RE::TESEquipEvent* event,
-      RE::BSTEventSource<RE::TESEquipEvent>*) override {
-    if (event->actor->IsPlayerRef()) {
-      update_piece = event->baseObject;
-    }
-    return RE::BSEventNotifyControl::kContinue;
-  }
-};
-
 void handle_message(SKSE::MessagingInterface::Message* msg) {
-  auto* event_source_holder = RE::ScriptEventSourceHolder::GetSingleton();
-  auto* data_handler = RE::TESDataHandler::GetSingleton();
   switch (msg->type) {
     case SKSE::MessagingInterface::kDataLoaded:
-      event_source_holder->AddEventSink(new InventoryUpdateSink());
+      auto* data_handler = RE::TESDataHandler::GetSingleton();
       logger::info("Registered inventory update sink");
       heels_sound = data_handler->LookupForm<RE::BGSFootstepSet>(
           0x004527, "Heels Sound.esm");
       logger::info("heels sound {}", heels_sound ? heels_sound->formID : -1);
-      break;
-    case SKSE::MessagingInterface::kPostLoadGame:
-      const auto* player = RE::PlayerCharacter::GetSingleton();
-      if (!player) {
-        return;
-      }
-      const auto* boots = get_player_boots();
-      update_piece = boots->formID;
       break;
   }
 }
